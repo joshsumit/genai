@@ -1,0 +1,68 @@
+import os
+import glob
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer, Trainer, TrainingArguments, DataCollatorForLanguageModeling
+from datasets import load_dataset, concatenate_datasets
+
+# Function to get all text files from a directory and its subdirectories
+def get_all_text_files(directory):
+    return glob.glob(os.path.join(directory, '**', '*.txt'), recursive=True)
+
+# Tokenize the dataset
+def tokenize_function(examples):
+    return tokenizer(examples['text'], truncation=True, padding='max_length', max_length=128)
+
+if __name__ == '__main__':
+
+    # Specify the directory containing your text files
+    directory = "C:\\sj\\data\\input"
+
+    # Get all text files from the directory
+    file_paths = get_all_text_files(directory)
+
+    # Load pre-trained model and tokenizer
+    model_name = "C:\\sj\\models\\Mistral-7B-Instruct-v0.3"
+    model = AutoModelForCausalLM.from_pretrained(model_name)
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+    # Set the pad_token to eos_token
+    tokenizer.pad_token = tokenizer.eos_token
+
+    # Load and concatenate multiple text files into a single dataset
+    datasets = [load_dataset('text', data_files={'train': file_path})['train'] for file_path in file_paths]
+    dataset = concatenate_datasets(datasets)
+
+    tokenized_dataset = dataset.map(tokenize_function, batched=True, remove_columns=["text"])
+
+    # Data collator for language modeling
+    data_collator = DataCollatorForLanguageModeling(
+        tokenizer=tokenizer,
+        mlm=False,  # Set to True if using a masked language model
+    )
+
+    # Training arguments
+    training_args = TrainingArguments(
+        output_dir="c:\\sj\\data\\results",
+        overwrite_output_dir=True,
+        num_train_epochs=3,
+        per_device_train_batch_size=8,
+        save_steps=10_000,
+        save_total_limit=2,
+        fp16=True,  # Enable mixed precision training for faster training on GPUs
+        dataloader_num_workers=4,  # Number of subprocesses to use for data loading
+    )
+
+    # Trainer
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        data_collator=data_collator,
+        train_dataset=tokenized_dataset,
+    )
+
+    # Train the model
+    trainer.train()
+
+    # Save the model
+    trainer.save_model("c:\\sj\\data\\results\\fine_tuned_model")
+    tokenizer.save_pretrained("c:\\sj\\data\\results\\fine_tuned_model")

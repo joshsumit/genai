@@ -5,7 +5,7 @@ import json, os
 
 from pathlib import Path
 
-input_path="C:\\sj\\data\\input1\\APCIMCLbCtSu"
+input_path="C:\\sj\\data\\input"
 model_path = "C:\\sj\\models\\Mistral-7B-Instruct-v0.3"
 output_path= "C:\\sj\\data\\output"
 file_name = output_path + '\\data.json'
